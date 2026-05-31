@@ -138,7 +138,7 @@ export async function runAgent(subject: SubjectProperty): Promise<AgentOutput | 
             .optional()
             .describe("Search radius in km. Default 5, relax to 8 or 12."),
         }),
-        execute: async ({ maxAgeDays, glaTolerancePct, radiusKm } = {}) => {
+        execute: async ({ maxAgeDays, glaTolerancePct, radiusKm }) => {
           const comps = searchCompsLib(subject, {
             maxAgeDays: maxAgeDays ?? 180,
             glaTolerancePct: glaTolerancePct ?? 0.3,
