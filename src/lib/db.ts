@@ -61,11 +61,15 @@ export function insertSale(db: Database.Database, sale: SaleRecord): void {
   `).run(sale);
 }
 
+export function getSaleByIdFromDb(
+  db: Database.Database,
+  id: string
+): SaleRecord | undefined {
+  return db.prepare("SELECT * FROM sales WHERE id = ?").get(id) as SaleRecord | undefined;
+}
+
 export function getSaleById(id: string): SaleRecord | undefined {
-  const db = getDb();
-  return db
-    .prepare("SELECT * FROM sales WHERE id = ?")
-    .get(id) as SaleRecord | undefined;
+  return getSaleByIdFromDb(getDb(), id);
 }
 
 export interface QueryFilters {

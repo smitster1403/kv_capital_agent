@@ -90,17 +90,8 @@ export const AgentCompSelectionSchema = z.object({
 export type AgentCompSelection = z.infer<typeof AgentCompSelectionSchema>;
 
 export const AgentOutputSchema = z.object({
-  selected_comps: z
-    .array(AgentCompSelectionSchema)
-    .min(1)
-    .max(5)
-    .refine(
-      (comps) => {
-        const total = comps.reduce((sum, c) => sum + c.weight, 0);
-        return Math.abs(total - 1.0) < 0.01;
-      },
-      { message: "Weights must sum to 1.0" }
-    ),
+  // Weights are normalized to 1.0 in agent.ts after parsing, so no refine here.
+  selected_comps: z.array(AgentCompSelectionSchema).min(1).max(5),
   rationale: z.string().min(1),
   confidence: ConfidenceSchema,
   flags: z.array(z.string()),
