@@ -13,11 +13,11 @@ export function getDb(): Database.Database {
   fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
   _db = new Database(resolvedPath);
   _db.pragma("journal_mode = WAL");
-  ensureSchema(_db);
+  applySchema(_db);
   return _db;
 }
 
-function ensureSchema(db: Database.Database): void {
+export function applySchema(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS sales (
       id             TEXT PRIMARY KEY,
@@ -39,6 +39,13 @@ function ensureSchema(db: Database.Database): void {
       sale_price     REAL NOT NULL
     )
   `);
+}
+
+// In-memory database for tests: call this instead of getDb() in test files.
+export function createTestDb(): Database.Database {
+  const db = new Database(":memory:");
+  applySchema(db);
+  return db;
 }
 
 export function insertSale(db: Database.Database, sale: SaleRecord): void {
@@ -63,7 +70,7 @@ export function getSaleById(id: string): SaleRecord | undefined {
 
 export interface QueryFilters {
   property_type?: string;
-  saleDateAfter?: string;   // ISO date string, inclusive
+  saleDateAfter?: string;
   glaMin?: number;
   glaMax?: number;
   latMin?: number;
@@ -72,8 +79,10 @@ export interface QueryFilters {
   lonMax?: number;
 }
 
-export function querySales(filters: QueryFilters = {}): SaleRecord[] {
-  const db = getDb();
+export function querySalesFromDb(
+  db: Database.Database,
+  filters: QueryFilters = {}
+): SaleRecord[] {
   const clauses: string[] = [];
   const params: Record<string, string | number> = {};
 
@@ -114,6 +123,10 @@ export function querySales(filters: QueryFilters = {}): SaleRecord[] {
   return db
     .prepare(`SELECT * FROM sales ${where} ORDER BY sale_date DESC`)
     .all(params) as SaleRecord[];
+}
+
+export function querySales(filters: QueryFilters = {}): SaleRecord[] {
+  return querySalesFromDb(getDb(), filters);
 }
 
 export function countSales(): number {
