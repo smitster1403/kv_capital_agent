@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ValuationReport, AdjustmentItem } from "@/lib/types";
+import { COMMUNITIES, getCommunityCoords } from "@/lib/communities";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -9,9 +10,6 @@ import type { ValuationReport, AdjustmentItem } from "@/lib/types";
 
 type FormData = {
   community: string;
-  city: string;
-  latitude: string;
-  longitude: string;
   property_type: string;
   beds: string;
   baths_full: string;
@@ -32,9 +30,6 @@ type Status = "idle" | "loading" | "success" | "error";
 
 const DEFAULT: FormData = {
   community: "Evanston",
-  city: "Calgary",
-  latitude: "51.1782",
-  longitude: "-114.1453",
   property_type: "detached",
   beds: "4",
   baths_full: "2",
@@ -217,12 +212,19 @@ export default function Home() {
     setReport(null);
     setErrorMsg("");
 
+    const coords = getCommunityCoords(form.community);
+    if (!coords) {
+      setErrorMsg(`Unknown community: ${form.community}`);
+      setStatus("error");
+      return;
+    }
+
     const subject = {
       id: `subject-${Date.now()}`,
       community: form.community,
-      city: form.city,
-      latitude: parseFloat(form.latitude),
-      longitude: parseFloat(form.longitude),
+      city: "Calgary",
+      latitude: coords.lat,
+      longitude: coords.lon,
       property_type: form.property_type,
       beds: parseInt(form.beds, 10),
       baths_full: parseInt(form.baths_full, 10),
@@ -274,37 +276,15 @@ export default function Home() {
             {/* Location */}
             <div className="form-section">
               <h2>Location</h2>
-              <Field label="Community">
-                <input
-                  value={form.community}
-                  onChange={set("community")}
-                  required
-                  placeholder="e.g. Evanston"
-                />
+              <Field label="Community (Calgary)">
+                <select value={form.community} onChange={set("community")} required>
+                  {COMMUNITIES.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </Field>
-              <Field label="City">
-                <input value={form.city} onChange={set("city")} required />
-              </Field>
-              <div className="field-row">
-                <Field label="Latitude">
-                  <input
-                    type="number"
-                    step="0.0001"
-                    value={form.latitude}
-                    onChange={set("latitude")}
-                    required
-                  />
-                </Field>
-                <Field label="Longitude">
-                  <input
-                    type="number"
-                    step="0.0001"
-                    value={form.longitude}
-                    onChange={set("longitude")}
-                    required
-                  />
-                </Field>
-              </div>
             </div>
 
             {/* Property */}
