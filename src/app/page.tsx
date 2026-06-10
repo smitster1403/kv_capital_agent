@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { ValuationReport, AdjustmentItem } from "@/lib/types";
 import { COMMUNITIES, getCommunityCoords } from "@/lib/communities";
 
@@ -74,6 +74,127 @@ function badgeClass(c: string) {
   if (c === "high") return "badge badge-high";
   if (c === "low") return "badge badge-low";
   return "badge badge-medium";
+}
+
+// ---------------------------------------------------------------------------
+// Community combobox: text filter input + scrollable dropdown list
+// ---------------------------------------------------------------------------
+
+function CommunityCombobox({
+  value,
+  onChange,
+  withData,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  withData: Set<string>;
+}) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const q = query.toLowerCase();
+  const allFiltered = COMMUNITIES.filter((c) => c.name.toLowerCase().includes(q));
+  const withDataFiltered = allFiltered.filter((c) => withData.has(c.name));
+  const withoutDataFiltered = allFiltered.filter((c) => !withData.has(c.name));
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        if (!COMMUNITIES.find((c) => c.name.toLowerCase() === query.toLowerCase())) {
+          setQuery(value);
+        }
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [query, value]);
+
+  function select(name: string) {
+    onChange(name);
+    setQuery(name);
+    setOpen(false);
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setQuery(e.target.value);
+    setOpen(true);
+  }
+
+  function handleToggle() {
+    setOpen((o) => !o);
+    if (!open) setQuery("");
+  }
+
+  const totalFiltered = allFiltered.length;
+
+  return (
+    <div className="combobox" ref={containerRef}>
+      <div className="combobox-input-row">
+        <input
+          type="text"
+          value={query}
+          onChange={handleInputChange}
+          onFocus={() => setOpen(true)}
+          placeholder="Type to filter..."
+          autoComplete="off"
+          required
+        />
+        <button
+          type="button"
+          className="combobox-toggle"
+          onClick={handleToggle}
+          tabIndex={-1}
+          aria-label="Open community list"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+
+      {open && (
+        <ul className="combobox-list" role="listbox">
+          {totalFiltered === 0 ? (
+            <li className="combobox-empty">No communities match</li>
+          ) : (
+            <>
+              {withDataFiltered.map((c) => (
+                <li
+                  key={c.name}
+                  role="option"
+                  aria-selected={c.name === value}
+                  className={`combobox-option combobox-option-live${c.name === value ? " combobox-option-selected" : ""}`}
+                  onMouseDown={() => select(c.name)}
+                >
+                  <span className="combobox-dot" />
+                  {c.name}
+                </li>
+              ))}
+
+              {withDataFiltered.length > 0 && withoutDataFiltered.length > 0 && (
+                <li className="combobox-divider" role="separator" />
+              )}
+
+              {withoutDataFiltered.map((c) => (
+                <li
+                  key={c.name}
+                  role="option"
+                  aria-selected={c.name === value}
+                  className={`combobox-option combobox-option-dim${c.name === value ? " combobox-option-selected" : ""}`}
+                  onMouseDown={() => select(c.name)}
+                >
+                  {c.name}
+                </li>
+              ))}
+            </>
+          )}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -200,6 +321,14 @@ export default function Home() {
   const [status, setStatus] = useState<Status>("idle");
   const [report, setReport] = useState<ValuationReport | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [withData, setWithData] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    fetch("/api/communities")
+      .then((r) => r.json())
+      .then((d: { communities: string[] }) => setWithData(new Set(d.communities)))
+      .catch(() => {});
+  }, []);
 
   function set(key: keyof FormData) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -277,13 +406,11 @@ export default function Home() {
             <div className="form-section">
               <h2>Location</h2>
               <Field label="Community (Calgary)">
-                <select value={form.community} onChange={set("community")} required>
-                  {COMMUNITIES.map((c) => (
-                    <option key={c.name} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <CommunityCombobox
+                  value={form.community}
+                  onChange={(v) => setForm((f) => ({ ...f, community: v }))}
+                  withData={withData}
+                />
               </Field>
             </div>
 

@@ -220,3 +220,107 @@ body {
   color: #991b1b;
   font-size: 13px;
 }
+
+/* Community combobox */
+.combobox { position: relative; }
+
+.combobox-input-row {
+  display: flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.combobox-input-row:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+.combobox-input-row input {
+  flex: 1;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 7px 10px;
+  font-size: 13px;
+  outline: none;
+  background: transparent;
+}
+.combobox-input-row input:focus { border-color: transparent; box-shadow: none; }
+
+.combobox-toggle {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border: none;
+  border-left: 1px solid #e2e8f0;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.combobox-toggle:hover { background: #e2e8f0; color: #1a1a1a; }
+
+.combobox-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 100;
+  list-style: none;
+  padding: 4px 0;
+}
+
+.combobox-option {
+  padding: 7px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.combobox-option:hover { background: #f1f5f9; }
+.combobox-option-selected { background: #dbeafe; color: #1d4ed8; font-weight: 600; }
+.combobox-option-selected:hover { background: #bfdbfe; }
+
+/* Communities with data in the DB */
+.combobox-option-live { color: #0f172a; }
+
+/* Communities not yet in the DB */
+.combobox-option-dim { color: #94a3b8; }
+.combobox-option-dim:hover { background: #f8fafc; }
+
+/* Green availability dot */
+.combobox-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+/* Divider between "with data" and "without data" groups */
+.combobox-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 4px 0;
+  padding: 0;
+}
+
+.combobox-empty {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #94a3b8;
+  font-style: italic;
+}
