@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Comp Analysis Tool",
-  description: "Residential home valuation via sales comparison approach",
+  title: "KV Capital | Residential Comp Analysis",
+  description: "AI-powered sales comparison valuation for residential properties in Calgary",
 };
 
 export default function RootLayout({
