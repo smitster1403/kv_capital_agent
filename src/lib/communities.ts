@@ -27,7 +27,9 @@ export const COMMUNITIES = [
   { name: "Windsor Park",        lat: 51.0460, lon: -114.0940 },
 
   // NW Calgary
+  { name: "Arbour Lake",         lat: 51.1230, lon: -114.2040 },
   { name: "Brentwood",           lat: 51.0870, lon: -114.1320 },
+  { name: "Carrington",          lat: 51.1830, lon: -114.1680 },
   { name: "Charleswood",         lat: 51.0900, lon: -114.1680 },
   { name: "Citadel",             lat: 51.1450, lon: -114.1780 },
   { name: "Dalhousie",           lat: 51.0970, lon: -114.1530 },
@@ -35,7 +37,9 @@ export const COMMUNITIES = [
   { name: "Evanston",            lat: 51.1780, lon: -114.1450 },
   { name: "Hamptons",            lat: 51.1490, lon: -114.1960 },
   { name: "Hawkwood",            lat: 51.1210, lon: -114.2100 },
+  { name: "Kincora",             lat: 51.1660, lon: -114.1900 },
   { name: "Montgomery",          lat: 51.0720, lon: -114.1450 },
+  { name: "Mount Pleasant",      lat: 51.0710, lon: -114.0970 },
   { name: "Parkdale",            lat: 51.0760, lon: -114.1290 },
   { name: "Ranchlands",          lat: 51.1130, lon: -114.1750 },
   { name: "Rocky Ridge",         lat: 51.1650, lon: -114.2380 },
@@ -44,10 +48,12 @@ export const COMMUNITIES = [
   { name: "Silver Springs",      lat: 51.1050, lon: -114.2000 },
   { name: "Tuscany",             lat: 51.1320, lon: -114.2290 },
   { name: "University Heights",  lat: 51.0790, lon: -114.1280 },
+  { name: "Valley Ridge",        lat: 51.1100, lon: -114.2700 },
   { name: "Varsity",             lat: 51.0860, lon: -114.1500 },
 
   // SW Calgary
   { name: "Aspen Woods",         lat: 51.0290, lon: -114.2290 },
+  { name: "West Springs",        lat: 51.0490, lon: -114.2070 },
   { name: "Canyon Meadows",      lat: 50.9600, lon: -114.0920 },
   { name: "Cedarbrae",           lat: 50.9660, lon: -114.1240 },
   { name: "Cougar Ridge",        lat: 51.0360, lon: -114.2150 },
@@ -74,9 +80,13 @@ export const COMMUNITIES = [
   { name: "Coventry Hills",      lat: 51.1680, lon: -114.0420 },
   { name: "Country Hills",       lat: 51.1550, lon: -114.0400 },
   { name: "Harvest Hills",       lat: 51.1530, lon: -114.0290 },
+  { name: "Highwood",            lat: 51.1020, lon: -114.0550 },
+  { name: "Keystone Hills",      lat: 51.1950, lon: -114.0270 },
+  { name: "Livingston",          lat: 51.2020, lon: -114.0300 },
   { name: "Panorama Hills",      lat: 51.1520, lon: -114.0600 },
 
   // NE Calgary
+  { name: "Castleridge",         lat: 51.1010, lon: -113.9870 },
   { name: "Coral Springs",       lat: 51.1300, lon: -113.9590 },
   { name: "Falconridge",         lat: 51.1310, lon: -113.9840 },
   { name: "Martindale",          lat: 51.1420, lon: -113.9720 },
@@ -100,7 +110,9 @@ export const COMMUNITIES = [
   { name: "Quarry Park",         lat: 50.9580, lon: -114.0260 },
   { name: "Riverbend",           lat: 50.9600, lon: -114.0110 },
   { name: "Silverado",           lat: 50.9120, lon: -114.0460 },
+  { name: "Seton",               lat: 50.8790, lon: -113.9900 },
   { name: "Walden",              lat: 50.8890, lon: -113.9710 },
+  { name: "Wolf Willow",         lat: 50.8620, lon: -114.0100 },
 ] as const;
 
 export type CommunityName = (typeof COMMUNITIES)[number]["name"];

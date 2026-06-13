@@ -94,20 +94,37 @@ function normalizeBasement(raw: string): string {
   return "unfinished";
 }
 
-// Validates YYYY-MM-DD and normalises month-only dates (2026-05 -> skip)
-function normalizeDate(raw: string): string | null {
-  const full = /^\d{4}-\d{2}-\d{2}$/.test(raw);
-  if (full) return raw;
-  return null; // month-only dates are too imprecise for recency scoring
+// Strip "N/A", "n/a", "-" to empty string.
+function clean(raw: string): string {
+  const s = raw.trim();
+  return /^(n\/a|-+)$/i.test(s) ? "" : s;
+}
+
+// Strip currency symbols and thousands separators: "$1,164" -> "1164"
+function stripCurrency(raw: string): string {
+  return raw.replace(/[$,]/g, "");
+}
+
+// Validates YYYY-MM-DD. Returns today's date for missing/invalid dates so
+// that manually-collected listings without a sale date still get imported.
+const TODAY = new Date().toISOString().slice(0, 10);
+function normalizeDate(raw: string): string {
+  const s = clean(raw);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return TODAY; // treat missing date as today (recently listed/sold)
 }
 
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
-const csvPath = process.argv[2];
+const argv = process.argv.slice(2);
+const csvPath = argv.find((a) => !a.startsWith("--"));
+const APPEND = argv.includes("--append");
+
 if (!csvPath) {
-  console.error("Usage: npx tsx scripts/import-real-data.ts <path-to-csv>");
+  console.error("Usage: npx tsx scripts/import-real-data.ts <path-to-csv> [--append]");
+  console.error("  --append  Add to existing data instead of wiping the table first");
   process.exit(1);
 }
 
@@ -118,12 +135,20 @@ fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
 const db = new Database(resolvedPath);
 db.pragma("journal_mode = WAL");
 
-// Wipe and recreate the sales table so we start clean.
-db.exec("DROP TABLE IF EXISTS sales");
-applySchema(db);
+if (APPEND) {
+  // Ensure schema exists without wiping existing rows.
+  applySchema(db);
+  console.log("Mode: append (existing records kept)");
+} else {
+  // Default: wipe and recreate so we start clean.
+  db.exec("DROP TABLE IF EXISTS sales");
+  applySchema(db);
+  console.log("Mode: replace (table wiped)");
+}
 
+// INSERT OR REPLACE so duplicate IDs from re-runs update rather than error.
 const insert = db.prepare(`
-  INSERT INTO sales
+  INSERT OR REPLACE INTO sales
     (id, community, city, latitude, longitude, property_type,
      beds, baths_full, baths_half, gla_sqft, lot_size_sqft, year_built,
      condition, garage_spaces, basement, sale_date, sale_price)
@@ -153,15 +178,11 @@ const importAll = db.transaction(() => {
 
     const community = get(row, "community");
     const saleDate = normalizeDate(get(row, "sale_date"));
-    const salePriceRaw = parseFloat(get(row, "sale_price"));
+    const salePriceRaw = parseFloat(stripCurrency(get(row, "sale_price")));
 
     // --- Hard skips ---
     if (!community) {
       skipReasons["missing community"] = (skipReasons["missing community"] ?? 0) + 1;
-      skipped++; continue;
-    }
-    if (!saleDate) {
-      skipReasons["invalid/partial date"] = (skipReasons["invalid/partial date"] ?? 0) + 1;
       skipped++; continue;
     }
     if (!salePriceRaw || salePriceRaw < 50_000) {
@@ -169,8 +190,19 @@ const importAll = db.transaction(() => {
       skipped++; continue;
     }
 
-    // --- Coordinates from community lookup ---
-    const coords = getCommunityCoords(community);
+    // --- Coordinates: use CSV values if valid, else fall back to community centroid ---
+    const csvLat = parseFloat(get(row, "latitude"));
+    const csvLon = parseFloat(get(row, "longitude"));
+    const hasCsvCoords =
+      !isNaN(csvLat) && !isNaN(csvLon) &&
+      csvLat !== 0 && csvLon !== 0 &&
+      Math.abs(csvLat) <= 90 && Math.abs(csvLon) <= 180;
+
+    const communityCoords = getCommunityCoords(community);
+    const coords = hasCsvCoords
+      ? { lat: csvLat, lon: csvLon }
+      : communityCoords;
+
     if (!coords) {
       skipReasons[`unknown community: ${community}`] =
         (skipReasons[`unknown community: ${community}`] ?? 0) + 1;
@@ -202,7 +234,7 @@ const importAll = db.transaction(() => {
       ? normalizePropertyType(propertyTypeRaw)
       : "detached";
 
-    const glaRaw = parseFloat(get(row, "gla_sqft"));
+    const glaRaw = parseFloat(stripCurrency(get(row, "gla_sqft")));
     const gla = glaRaw > 0 ? glaRaw : null;
 
     if (!gla) {
@@ -210,7 +242,7 @@ const importAll = db.transaction(() => {
       skipped++; continue;
     }
 
-    const lotRaw = parseFloat(get(row, "lot_size_sqft"));
+    const lotRaw = parseFloat(stripCurrency(get(row, "lot_size_sqft")));
     const lotSize = lotRaw > 0
       ? lotRaw
       : (propertyType === "apartment_condo" ? null : null);
@@ -222,7 +254,8 @@ const importAll = db.transaction(() => {
     const basementRaw = get(row, "basement");
     const basement = basementRaw ? normalizeBasement(basementRaw) : "unfinished";
 
-    const rawId = get(row, "id");
+    // Accept "id", "id (MLS®)", or just the first column as the record ID.
+    const rawId = get(row, "id") || get(row, "id (MLS®)") || row[0]?.trim() || "";
     const id = rawId || randomUUID();
 
     insert.run({
