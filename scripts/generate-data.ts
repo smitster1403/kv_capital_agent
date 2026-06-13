@@ -56,14 +56,22 @@ interface Community {
 }
 
 const COMMUNITIES: Community[] = [
-  { name: "Hillhurst",    lat: 51.0590, lon: -114.0940, basePricePerSqft: 500, typeDist: [20, 25, 25, 30] },
-  { name: "Bridgeland",   lat: 51.0530, lon: -114.0450, basePricePerSqft: 460, typeDist: [15, 20, 30, 35] },
-  { name: "Aspen Woods",  lat: 51.0290, lon: -114.2290, basePricePerSqft: 400, typeDist: [55, 20, 20,  5] },
-  { name: "Mahogany",     lat: 50.9120, lon: -113.9150, basePricePerSqft: 360, typeDist: [40, 25, 25, 10] },
-  { name: "Auburn Bay",   lat: 50.9290, lon: -113.9400, basePricePerSqft: 345, typeDist: [40, 25, 25, 10] },
-  { name: "Tuscany",      lat: 51.1320, lon: -114.2290, basePricePerSqft: 340, typeDist: [55, 20, 20,  5] },
-  { name: "Cranston",     lat: 50.8980, lon: -113.9520, basePricePerSqft: 325, typeDist: [45, 25, 25,  5] },
-  { name: "Evanston",     lat: 51.1780, lon: -114.1450, basePricePerSqft: 310, typeDist: [50, 25, 20,  5] },
+  // Inner city / close-in NW -- older stock, mix of types
+  { name: "Hillhurst",       lat: 51.0590, lon: -114.0940, basePricePerSqft: 500, typeDist: [20, 25, 25, 30] },
+  { name: "Rosedale",        lat: 51.0710, lon: -114.0880, basePricePerSqft: 530, typeDist: [55, 25, 15,  5] },
+  { name: "Crescent Heights", lat: 51.0600, lon: -114.0650, basePricePerSqft: 490, typeDist: [35, 30, 20, 15] },
+  { name: "Mount Pleasant",  lat: 51.0710, lon: -114.0970, basePricePerSqft: 480, typeDist: [40, 30, 20, 10] },
+  { name: "Bridgeland",      lat: 51.0530, lon: -114.0450, basePricePerSqft: 460, typeDist: [15, 20, 30, 35] },
+  { name: "Capitol Hill",    lat: 51.0820, lon: -114.0900, basePricePerSqft: 475, typeDist: [45, 30, 15, 10] },
+  // SW / NW suburbs
+  { name: "Aspen Woods",     lat: 51.0290, lon: -114.2290, basePricePerSqft: 400, typeDist: [55, 20, 20,  5] },
+  { name: "Springbank Hill", lat: 51.0230, lon: -114.2040, basePricePerSqft: 390, typeDist: [60, 20, 15,  5] },
+  { name: "Tuscany",         lat: 51.1320, lon: -114.2290, basePricePerSqft: 340, typeDist: [55, 20, 20,  5] },
+  { name: "Evanston",        lat: 51.1780, lon: -114.1450, basePricePerSqft: 310, typeDist: [50, 25, 20,  5] },
+  // SE suburbs
+  { name: "Mahogany",        lat: 50.9120, lon: -113.9150, basePricePerSqft: 360, typeDist: [40, 25, 25, 10] },
+  { name: "Auburn Bay",      lat: 50.9290, lon: -113.9400, basePricePerSqft: 345, typeDist: [40, 25, 25, 10] },
+  { name: "Cranston",        lat: 50.8980, lon: -113.9520, basePricePerSqft: 325, typeDist: [45, 25, 25,  5] },
 ];
 
 // ---------------------------------------------------------------------------
@@ -175,7 +183,12 @@ function generateRecord(community: Community, index: number): Record<string, unk
   const bathsFull = Math.min(beds, randInt(1, Math.ceil(beds / 1.5)));
   const bathsHalf = randInt(0, 1);
 
-  const yearBuilt = randInt(1978, 2024);
+  // Inner-city communities (Hillhurst, Bridgeland) have many older homes;
+  // newer suburbs trend post-2000. Use a bimodal range per community era.
+  const communityEra = community.lat > 51.08 || community.lon < -114.15
+    ? { min: 1985, max: 2024 }  // newer suburbs (Evanston, Tuscany, etc.)
+    : { min: 1950, max: 2024 }; // inner-city (Hillhurst, Bridgeland, etc.)
+  const yearBuilt = randInt(communityEra.min, communityEra.max);
 
   // Condition: skewed toward 3-4
   const condition = weightedChoice([1, 2, 3, 4, 5], [3, 8, 30, 40, 19]);

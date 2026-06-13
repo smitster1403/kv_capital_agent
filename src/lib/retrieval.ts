@@ -110,12 +110,13 @@ export function searchComps(
     lonMax: subject.longitude + lonDelta,
   });
 
-  // Exact Haversine + year_built filter (SQL bounding box is an approximation).
+  // Exact Haversine filter (SQL bounding box is an approximation).
+  // year_built is NOT a hard cut -- it's already a scoring factor in scoreComp,
+  // so comps outside the age range are deprioritised, not rejected.
   const withinRange = candidates.filter(
     (c) =>
       haversineKm(subject.latitude, subject.longitude, c.latitude, c.longitude) <=
-        filters.radiusKm &&
-      Math.abs(c.year_built - subject.year_built) <= filters.yearBuiltToleranceYears
+        filters.radiusKm
   );
 
   // Compute pool median $/sqft for the scoring component.

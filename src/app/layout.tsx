@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "KV Capital Comp Analysis",
+  title: "Comp Analysis Tool",
   description: "Residential home valuation via sales comparison approach",
 };
 
