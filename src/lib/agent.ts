@@ -13,13 +13,14 @@ const BASE_SYSTEM_PROMPT = `You are an experienced residential property appraise
 
 WORKFLOW:
 1. Call searchComps to retrieve candidates using default filters.
-2. If you receive fewer than 3 candidates, relax the filters and call searchComps again. Relaxation order: first increase radiusKm (try 8, then 12), then increase glaTolerancePct (try 0.40, then 0.50), then increase maxAgeDays (try 270, then 365).
+2. If you receive fewer than 3 candidates, relax the filters and call searchComps again. Relaxation order: first increase radiusKm (try 5, then 8), then increase yearBuiltToleranceYears (try 15, then 20), then increase glaTolerancePct (try 0.30, then 0.40), then increase maxAgeDays (try 270, then 365).
 3. Once you have enough candidates, call submitSelection with your analysis.
 
 SELECTION CRITERIA (prefer comps that):
-- Are geographically closest to the subject
-- Sold most recently
-- Are most similar in GLA, beds, baths, year built, and condition
+- Are geographically closest to the subject (within 3 km)
+- Have a similar price per square foot to the pool median (the primary underwriting metric)
+- Sold most recently (within 6 months preferred)
+- Are within 10 years of age and within 20% GLA of the subject
 - Would require the fewest and smallest adjustments to match the subject
 
 RULES (critical):
@@ -97,13 +98,19 @@ function formatCandidates(
 // Main agent function
 // ---------------------------------------------------------------------------
 
-export async function runAgent(subject: SubjectProperty): Promise<AgentOutput | null> {
+export type AgentResult = {
+  output: AgentOutput;
+  candidates: SaleRecord[];
+};
+
+export async function runAgent(subject: SubjectProperty): Promise<AgentResult | null> {
   const modelId = process.env.AI_MODEL ?? "claude-sonnet-4-5";
   const model = anthropic(modelId);
   const today = new Date();
 
-  // Capture the model's submitSelection call via closure.
+  // Capture agent output and the last candidate pool via closure.
   let captured: unknown = null;
+  let lastCandidates: SaleRecord[] = [];
 
   await generateText({
     model,
@@ -131,26 +138,35 @@ export async function runAgent(subject: SubjectProperty): Promise<AgentOutput | 
             .min(0.1)
             .max(0.6)
             .optional()
-            .describe("GLA tolerance as a fraction of subject GLA. Default 0.30, relax to 0.40 or 0.50."),
+            .describe("GLA tolerance as a fraction of subject GLA. Default 0.20, relax to 0.30 or 0.40."),
           radiusKm: z
             .number()
             .positive()
             .optional()
-            .describe("Search radius in km. Default 5, relax to 8 or 12."),
+            .describe("Search radius in km. Default 3, relax to 5 or 8."),
+          yearBuiltToleranceYears: z
+            .number()
+            .int()
+            .positive()
+            .optional()
+            .describe("Max year-built gap from subject. Default 10, relax to 15 or 20."),
         }),
-        execute: async ({ maxAgeDays, glaTolerancePct, radiusKm }) => {
+        execute: async ({ maxAgeDays, glaTolerancePct, radiusKm, yearBuiltToleranceYears }) => {
           const comps = searchCompsLib(subject, {
             maxAgeDays: maxAgeDays ?? 180,
-            glaTolerancePct: glaTolerancePct ?? 0.3,
-            radiusKm: radiusKm ?? 5,
+            glaTolerancePct: glaTolerancePct ?? 0.20,
+            radiusKm: radiusKm ?? 3,
+            yearBuiltToleranceYears: yearBuiltToleranceYears ?? 10,
           });
+          lastCandidates = comps;
           const candidates = formatCandidates(comps, subject, today);
           return {
             count: comps.length,
             filters_used: {
               maxAgeDays: maxAgeDays ?? 180,
-              glaTolerancePct: glaTolerancePct ?? 0.3,
-              radiusKm: radiusKm ?? 5,
+              glaTolerancePct: glaTolerancePct ?? 0.20,
+              radiusKm: radiusKm ?? 3,
+              yearBuiltToleranceYears: yearBuiltToleranceYears ?? 10,
             },
             advice:
               comps.length < 3
@@ -223,11 +239,13 @@ export async function runAgent(subject: SubjectProperty): Promise<AgentOutput | 
   const totalWeight = parsed.data.selected_comps.reduce((s, c) => s + c.weight, 0);
   if (totalWeight === 0) return null;
 
-  return {
+  const output: AgentOutput = {
     ...parsed.data,
     selected_comps: parsed.data.selected_comps.map((c) => ({
       ...c,
       weight: parseFloat((c.weight / totalWeight).toFixed(6)),
     })),
   };
+
+  return { output, candidates: lastCandidates };
 }

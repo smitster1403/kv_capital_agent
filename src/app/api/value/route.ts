@@ -21,9 +21,9 @@ export async function POST(req: NextRequest) {
 
   const { subject } = parsed.data;
 
-  const agentOutput = await runAgent(subject);
+  const result = await runAgent(subject);
 
-  if (!agentOutput) {
+  if (!result) {
     return NextResponse.json(
       buildInsufficientCompsReport(
         "The agent could not find sufficient comparable sales near this property, even after relaxing search filters. A reliable estimate cannot be produced."
@@ -31,6 +31,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const report = buildReport(subject, agentOutput);
+  const report = buildReport(subject, result.output, undefined, result.candidates);
   return NextResponse.json(report);
 }

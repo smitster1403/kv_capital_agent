@@ -167,7 +167,7 @@ describe.skipIf(!LIVE)("live smoke test (RUN_LIVE_SMOKE=true)", () => {
     const agentOutput = await runAgent(BASE_SUBJECT);
     expect(agentOutput).not.toBeNull();
 
-    const report = buildReport(BASE_SUBJECT, agentOutput!, db);
+    const report = buildReport(BASE_SUBJECT, agentOutput!.output, db);
     expect(report.estimate).toBeGreaterThan(0);
     expect(report.confidence).toMatch(/low|medium|high/);
     expect(report.selected_comps.length).toBeGreaterThanOrEqual(1);

@@ -33,13 +33,14 @@ function daysBetween(dateStr: string, ref: Date): number {
 }
 
 // Composite similarity score (lower = better). Weights:
-//   geographic distance 35%, recency 25%, GLA proximity 25%, beds/baths 15%
-// Each component is normalized to [0, 1] relative to the filter thresholds.
+//   distance 30%, recency 20%, GLA 20%, year_built 10%, beds 5%, baths 5%, $/sqft 10%
+// medianPsf is the pool median -- pass 0 to skip the $/sqft component.
 export function scoreComp(
   subject: SubjectProperty,
   comp: SaleRecord,
   filters: CompSearchFilters,
-  today: Date = new Date()
+  today: Date = new Date(),
+  medianPsf: number = 0
 ): number {
   const dist = haversineKm(
     subject.latitude,
@@ -49,19 +50,30 @@ export function scoreComp(
   );
   const days = daysBetween(comp.sale_date, today);
   const glaDelta = Math.abs(comp.gla_sqft - subject.gla_sqft) / subject.gla_sqft;
+  const yearDelta = Math.abs(comp.year_built - subject.year_built);
 
-  const distScore = dist / filters.radiusKm;
+  const distScore    = Math.min(dist / filters.radiusKm, 1);
   const recencyScore = Math.min(days / filters.maxAgeDays, 1);
-  const glaScore = Math.min(glaDelta / filters.glaTolerancePct, 1);
-  const bedScore = Math.min(Math.abs(comp.beds - subject.beds) / 3, 1);
-  const bathScore = Math.min(Math.abs(comp.baths_full - subject.baths_full) / 2, 1);
+  const glaScore     = Math.min(glaDelta / filters.glaTolerancePct, 1);
+  const yearScore    = Math.min(yearDelta / filters.yearBuiltToleranceYears, 1);
+  const bedScore     = Math.min(Math.abs(comp.beds - subject.beds) / 3, 1);
+  const bathScore    = Math.min(Math.abs(comp.baths_full - subject.baths_full) / 2, 1);
+
+  let psfScore = 0;
+  if (medianPsf > 0) {
+    const compPsf = comp.sale_price / comp.gla_sqft;
+    // Normalize: 30%+ deviation from median = max penalty
+    psfScore = Math.min(Math.abs(compPsf - medianPsf) / (medianPsf * 0.30), 1);
+  }
 
   return (
-    0.35 * distScore +
-    0.25 * recencyScore +
-    0.25 * glaScore +
-    0.075 * bedScore +
-    0.075 * bathScore
+    0.30 * distScore +
+    0.20 * recencyScore +
+    0.20 * glaScore +
+    0.10 * yearScore +
+    0.05 * bedScore +
+    0.05 * bathScore +
+    0.10 * psfScore
   );
 }
 
@@ -98,18 +110,25 @@ export function searchComps(
     lonMax: subject.longitude + lonDelta,
   });
 
-  // Exact Haversine filter, then score and rank.
-  const scored = candidates
-    .filter(
-      (c) =>
-        haversineKm(
-          subject.latitude,
-          subject.longitude,
-          c.latitude,
-          c.longitude
-        ) <= filters.radiusKm
-    )
-    .map((c) => ({ comp: c, score: scoreComp(subject, c, filters, today) }));
+  // Exact Haversine + year_built filter (SQL bounding box is an approximation).
+  const withinRange = candidates.filter(
+    (c) =>
+      haversineKm(subject.latitude, subject.longitude, c.latitude, c.longitude) <=
+        filters.radiusKm &&
+      Math.abs(c.year_built - subject.year_built) <= filters.yearBuiltToleranceYears
+  );
+
+  // Compute pool median $/sqft for the scoring component.
+  const psfValues = withinRange
+    .map((c) => c.sale_price / c.gla_sqft)
+    .sort((a, b) => a - b);
+  const medianPsf =
+    psfValues.length > 0 ? psfValues[Math.floor(psfValues.length / 2)] : 0;
+
+  const scored = withinRange.map((c) => ({
+    comp: c,
+    score: scoreComp(subject, c, filters, today, medianPsf),
+  }));
 
   scored.sort((a, b) => a.score - b.score);
   return scored.slice(0, filters.topN).map((s) => s.comp);

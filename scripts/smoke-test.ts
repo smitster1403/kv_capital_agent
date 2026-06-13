@@ -57,10 +57,10 @@ async function main() {
   }
 
   console.log("\nAgent selection:");
-  console.log(JSON.stringify(agentOutput, null, 2));
+  console.log(JSON.stringify(agentOutput.output, null, 2));
 
   console.log("\nBuilding report...");
-  const report = buildReport(subject, agentOutput);
+  const report = buildReport(subject, agentOutput.output, undefined, agentOutput.candidates);
 
   console.log("\nValuation Report:");
   console.log("=================");

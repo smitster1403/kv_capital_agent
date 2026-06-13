@@ -75,9 +75,9 @@ describe("searchComps: date filter", () => {
   });
 
   it("includes comps within a relaxed date window", () => {
-    const cutoffSale = makeSale({ id: "one-year", sale_date: "2025-06-01" });
+    // ~270 days ago: outside 180-day tight window, inside 365-day relaxed window.
+    const cutoffSale = makeSale({ id: "one-year", sale_date: "2025-09-15" });
     seed(cutoffSale);
-    // Default 180 days would exclude this; 365 days should include it.
     const tight = searchComps(BASE_SUBJECT, { maxAgeDays: 180 }, db);
     const relaxed = searchComps(BASE_SUBJECT, { maxAgeDays: 365 }, db);
     expect(tight.map((c) => c.id)).not.toContain("one-year");
@@ -90,8 +90,8 @@ describe("searchComps: date filter", () => {
 // ---------------------------------------------------------------------------
 
 describe("searchComps: GLA filter", () => {
-  it("excludes comps outside the ±30% GLA tolerance", () => {
-    // Subject GLA = 1800. 30% tolerance: 1260 - 2340.
+  it("excludes comps outside the ±20% GLA tolerance", () => {
+    // Subject GLA = 1800. 20% tolerance: 1440 - 2160.
     seed(
       makeSale({ id: "too-small", gla_sqft: 1000, sale_date: "2026-04-01" }),
       makeSale({ id: "too-large", gla_sqft: 3000, sale_date: "2026-04-01" }),
@@ -159,8 +159,9 @@ describe("searchComps: ranking", () => {
   });
 
   it("ranks the comp with matching GLA above one with bigger GLA delta", () => {
+    // 2100 is 16.7% delta -- within the 20% tolerance but further than 1800.
     const exact   = makeSale({ id: "exact-gla",  gla_sqft: 1800, sale_date: "2026-04-01" });
-    const further = makeSale({ id: "further-gla", gla_sqft: 2200, sale_date: "2026-04-01" });
+    const further = makeSale({ id: "further-gla", gla_sqft: 2100, sale_date: "2026-04-01" });
     seed(exact, further);
     const results = searchComps(BASE_SUBJECT, {}, db);
     const ids = results.map((c) => c.id);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import type { ValuationReport, AdjustmentItem } from "@/lib/types";
+import type { ValuationReport, AdjustmentItem, CandidateComp } from "@/lib/types";
 import { COMMUNITIES, getCommunityCoords } from "@/lib/communities";
 
 // ---------------------------------------------------------------------------
@@ -9,6 +9,7 @@ import { COMMUNITIES, getCommunityCoords } from "@/lib/communities";
 // ---------------------------------------------------------------------------
 
 type FormData = {
+  address: string;
   community: string;
   property_type: string;
   beds: string;
@@ -22,6 +23,14 @@ type FormData = {
   basement: string;
 };
 
+type GeocodeStatus = "idle" | "loading" | "ok" | "error";
+
+type GeocodedCoords = {
+  lat: number;
+  lon: number;
+  formatted_address: string;
+};
+
 type Status = "idle" | "loading" | "success" | "error";
 
 // ---------------------------------------------------------------------------
@@ -29,6 +38,7 @@ type Status = "idle" | "loading" | "success" | "error";
 // ---------------------------------------------------------------------------
 
 const DEFAULT: FormData = {
+  address: "",
   community: "Evanston",
   property_type: "detached",
   beds: "4",
@@ -303,11 +313,81 @@ function CompCard({
       )}
 
       <div className="comp-footer">
-        <span className="adj-price-label">Adjusted price</span>
-        <span className="adj-price-value">{fmt(adjusted_price)}</span>
+        <div>
+          <span className="adj-price-label">Adjusted price</span>
+          <span className="adj-price-value">{fmt(adjusted_price)}</span>
+        </div>
+        <div className="comp-psf">
+          <span className="adj-price-label">Sale $/sqft</span>
+          <span className="comp-psf-value">
+            ${Math.round(comp.sale_price / comp.gla_sqft).toLocaleString()}
+          </span>
+        </div>
       </div>
 
       {note && <div className="comp-note">{note}</div>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Candidate pool table
+// ---------------------------------------------------------------------------
+
+function CandidateTable({ candidates }: { candidates: CandidateComp[] }) {
+  const [open, setOpen] = useState(true);
+  if (candidates.length === 0) return null;
+
+  return (
+    <div className="cand-wrap">
+      <button className="cand-toggle" onClick={() => setOpen((o) => !o)}>
+        <span>Full Candidate Pool ({candidates.length})</span>
+        <svg
+          width="14" height="14" viewBox="0 0 14 14" fill="none"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+        >
+          <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="cand-table-scroll">
+          <table className="cand-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Community</th>
+                <th>Dist</th>
+                <th>Sold</th>
+                <th>Type</th>
+                <th>Bed/Bath</th>
+                <th>GLA</th>
+                <th>Year</th>
+                <th>$/sqft</th>
+                <th>Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {candidates.map((c) => (
+                <tr key={c.id} className={c.selected ? "cand-row-selected" : ""}>
+                  <td className="cand-sel-cell">
+                    {c.selected && <span className="cand-sel-dot" title="Selected by agent" />}
+                  </td>
+                  <td>{c.community}</td>
+                  <td>{c.distance_km} km</td>
+                  <td>{new Date(c.sale_date).toLocaleDateString("en-CA", { year: "numeric", month: "short" })}</td>
+                  <td>{c.property_type.replace(/_/g, " ")}</td>
+                  <td>{c.beds}bd / {c.baths_full}f {c.baths_half}h</td>
+                  <td>{c.gla_sqft.toLocaleString()}</td>
+                  <td>{c.year_built}</td>
+                  <td className="cand-psf">${c.price_per_sqft.toLocaleString()}</td>
+                  <td>{fmt(c.sale_price)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -322,6 +402,9 @@ export default function Home() {
   const [report, setReport] = useState<ValuationReport | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [withData, setWithData] = useState<Set<string>>(new Set());
+  const [geocodeStatus, setGeocodeStatus] = useState<GeocodeStatus>("idle");
+  const [geocodeMsg, setGeocodeMsg] = useState("");
+  const [geocodedCoords, setGeocodedCoords] = useState<GeocodedCoords | null>(null);
 
   useEffect(() => {
     fetch("/api/communities")
@@ -329,6 +412,36 @@ export default function Home() {
       .then((d: { communities: string[] }) => setWithData(new Set(d.communities)))
       .catch(() => {});
   }, []);
+
+  async function handleLookup() {
+    const address = form.address.trim();
+    if (!address) return;
+    setGeocodeStatus("loading");
+    setGeocodedCoords(null);
+    setGeocodeMsg("");
+    try {
+      const res = await fetch(`/api/geocode?address=${encodeURIComponent(address)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setGeocodeStatus("error");
+        setGeocodeMsg(data.error ?? "Address not found");
+        return;
+      }
+      setGeocodedCoords({ lat: data.lat, lon: data.lon, formatted_address: data.formatted_address });
+      setGeocodeStatus("ok");
+      setGeocodeMsg(data.formatted_address);
+      // Auto-fill community if Google returned a neighborhood that matches our list
+      if (data.neighborhood) {
+        const match = COMMUNITIES.find(
+          (c) => c.name.toLowerCase() === (data.neighborhood as string).toLowerCase()
+        );
+        if (match) setForm((f) => ({ ...f, community: match.name }));
+      }
+    } catch {
+      setGeocodeStatus("error");
+      setGeocodeMsg("Lookup failed — check your connection");
+    }
+  }
 
   function set(key: keyof FormData) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -341,7 +454,8 @@ export default function Home() {
     setReport(null);
     setErrorMsg("");
 
-    const coords = getCommunityCoords(form.community);
+    // Prefer geocoded coordinates (precise), fall back to community centroid.
+    const coords = geocodedCoords ?? getCommunityCoords(form.community);
     if (!coords) {
       setErrorMsg(`Unknown community: ${form.community}`);
       setStatus("error");
@@ -405,6 +519,43 @@ export default function Home() {
             {/* Location */}
             <div className="form-section">
               <h2>Location</h2>
+
+              <div className="field">
+                <label>Property Address</label>
+                <div className="addr-row">
+                  <input
+                    type="text"
+                    value={form.address}
+                    onChange={(e) => {
+                      setForm((f) => ({ ...f, address: e.target.value }));
+                      setGeocodeStatus("idle");
+                      setGeocodedCoords(null);
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleLookup(); } }}
+                    placeholder="123 Main St NW, Calgary, AB"
+                  />
+                  <button
+                    type="button"
+                    className="addr-lookup-btn"
+                    onClick={handleLookup}
+                    disabled={geocodeStatus === "loading" || !form.address.trim()}
+                  >
+                    {geocodeStatus === "loading" ? "..." : "Lookup"}
+                  </button>
+                </div>
+                {geocodeStatus === "ok" && (
+                  <div className="addr-status addr-ok">{geocodeMsg}</div>
+                )}
+                {geocodeStatus === "error" && (
+                  <div className="addr-status addr-err">{geocodeMsg}</div>
+                )}
+                {geocodeStatus === "idle" && !geocodedCoords && (
+                  <div className="addr-status addr-hint">
+                    Enter an address for precise coordinates, or select community below.
+                  </div>
+                )}
+              </div>
+
               <Field label="Community (Calgary)">
                 <CommunityCombobox
                   value={form.community}
@@ -572,11 +723,22 @@ export default function Home() {
                   <div className="estimate-value">
                     {report.estimate > 0 ? fmt(report.estimate) : "Insufficient data"}
                   </div>
-                  {report.estimate > 0 && (
-                    <div className="estimate-range">
-                      Range: {fmt(report.range_low)} to {fmt(report.range_high)}
-                    </div>
-                  )}
+                  {report.estimate > 0 && (() => {
+                    const gla = parseFloat(form.gla_sqft);
+                    const psf = gla > 0 ? Math.round(report.estimate / gla) : null;
+                    return (
+                      <>
+                        <div className="estimate-range">
+                          Range: {fmt(report.range_low)} to {fmt(report.range_high)}
+                        </div>
+                        {psf && (
+                          <div className="estimate-psf">
+                            ${psf.toLocaleString()} / sqft (implied)
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
 
                   {report.flags.length > 0 && (
                     <div className="flags-list">
@@ -602,10 +764,15 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Candidate pool table */}
+              {report.all_candidates.length > 0 && (
+                <CandidateTable candidates={report.all_candidates} />
+              )}
+
               {/* Comp cards */}
               {report.selected_comps.length > 0 && (
                 <>
-                  <div className="section-heading">Selected Comparables</div>
+                  <div className="section-heading" style={{ marginTop: 20 }}>Selected Comparables</div>
                   {report.selected_comps.map((rc, i) => (
                     <CompCard
                       key={rc.comp.id}

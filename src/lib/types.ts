@@ -61,9 +61,10 @@ export type SubjectProperty = z.infer<typeof SubjectPropertySchema>;
 
 export const CompSearchFiltersSchema = z.object({
   maxAgeDays: z.number().int().positive().default(180),
-  glaTolerancePct: z.number().min(0).max(1).default(0.30),
-  radiusKm: z.number().positive().default(5),
-  topN: z.number().int().positive().default(12),
+  glaTolerancePct: z.number().min(0).max(1).default(0.20),
+  radiusKm: z.number().positive().default(3),
+  yearBuiltToleranceYears: z.number().int().positive().default(10),
+  topN: z.number().int().positive().default(20),
 });
 export type CompSearchFilters = z.infer<typeof CompSearchFiltersSchema>;
 
@@ -112,6 +113,31 @@ export const ReportCompSchema = z.object({
 export type ReportComp = z.infer<typeof ReportCompSchema>;
 
 // ---------------------------------------------------------------------------
+// Candidate comp row -- the full pool the agent saw, ranked by similarity
+// ---------------------------------------------------------------------------
+
+export const CandidateCompSchema = z.object({
+  id: z.string(),
+  community: z.string(),
+  distance_km: z.number(),
+  days_since_sale: z.number(),
+  sale_date: z.string(),
+  property_type: z.string(),
+  beds: z.number(),
+  baths_full: z.number(),
+  baths_half: z.number(),
+  gla_sqft: z.number(),
+  year_built: z.number(),
+  condition: z.number(),
+  garage_spaces: z.number(),
+  basement: z.string(),
+  sale_price: z.number(),
+  price_per_sqft: z.number(),
+  selected: z.boolean(),
+});
+export type CandidateComp = z.infer<typeof CandidateCompSchema>;
+
+// ---------------------------------------------------------------------------
 // Final valuation report
 // ---------------------------------------------------------------------------
 
@@ -121,6 +147,7 @@ export const ValuationReportSchema = z.object({
   range_high: z.number(),
   confidence: ConfidenceSchema,
   selected_comps: z.array(ReportCompSchema),
+  all_candidates: z.array(CandidateCompSchema).default([]),
   rationale: z.string(),
   flags: z.array(z.string()),
 });

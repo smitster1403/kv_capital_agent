@@ -108,6 +108,7 @@ body {
 .estimate-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: #64748b; margin-bottom: 6px; }
 .estimate-value { font-size: 42px; font-weight: 800; color: #0f172a; letter-spacing: -1px; }
 .estimate-range { font-size: 14px; color: #64748b; margin-top: 4px; }
+.estimate-psf   { font-size: 13px; color: #3b82f6; font-weight: 600; margin-top: 2px; }
 
 .badge {
   display: inline-block;
@@ -188,10 +189,12 @@ body {
   border-top: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-end;
 }
-.adj-price-label { font-size: 12px; color: #64748b; }
+.adj-price-label { font-size: 12px; color: #64748b; display: block; margin-bottom: 2px; }
 .adj-price-value { font-size: 16px; font-weight: 700; color: #0f172a; }
+.comp-psf { text-align: right; }
+.comp-psf-value { font-size: 14px; font-weight: 600; color: #475569; }
 
 .comp-note {
   padding: 10px 16px;
@@ -220,6 +223,101 @@ body {
   color: #991b1b;
   font-size: 13px;
 }
+
+/* Address lookup */
+.addr-row {
+  display: flex;
+  gap: 6px;
+}
+.addr-row input { flex: 1; }
+
+.addr-lookup-btn {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  background: #1d4ed8;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.addr-lookup-btn:hover:not(:disabled) { background: #1e40af; }
+.addr-lookup-btn:disabled { background: #93c5fd; cursor: not-allowed; }
+
+.addr-status { font-size: 11px; margin-top: 4px; line-height: 1.4; }
+.addr-ok   { color: #16a34a; }
+.addr-err  { color: #dc2626; }
+.addr-hint { color: #94a3b8; }
+
+/* Candidate pool table */
+.cand-wrap {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.cand-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 11px 16px;
+  background: #f8fafc;
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #64748b;
+  cursor: pointer;
+}
+.cand-toggle:hover { background: #f1f5f9; }
+
+.cand-table-scroll { overflow-x: auto; }
+
+.cand-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.cand-table th {
+  text-align: left;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #94a3b8;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+.cand-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #f8fafc;
+  color: #334155;
+  white-space: nowrap;
+}
+.cand-table tr:last-child td { border-bottom: none; }
+.cand-table tr:hover td { background: #f8fafc; }
+
+.cand-row-selected td { background: #f0f7ff; }
+.cand-row-selected:hover td { background: #e5f0ff; }
+
+.cand-sel-cell { width: 24px; padding: 7px 6px 7px 12px; }
+.cand-sel-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3b82f6;
+}
+
+.cand-psf { font-weight: 700; color: #0f172a; }
 
 /* Community combobox */
 .combobox { position: relative; }
