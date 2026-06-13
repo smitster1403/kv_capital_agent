@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import type { ValuationReport, AdjustmentItem, CandidateComp } from "@/lib/types";
-import { COMMUNITIES, getCommunityCoords } from "@/lib/communities";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -10,7 +9,6 @@ import { COMMUNITIES, getCommunityCoords } from "@/lib/communities";
 
 type FormData = {
   address: string;
-  community: string;
   property_type: string;
   beds: string;
   baths_full: string;
@@ -28,6 +26,7 @@ type GeocodeStatus = "idle" | "loading" | "ok" | "error";
 type GeocodedCoords = {
   lat: number;
   lon: number;
+  neighborhood: string | null;
   formatted_address: string;
 };
 
@@ -39,7 +38,6 @@ type Status = "idle" | "loading" | "success" | "error";
 
 const DEFAULT: FormData = {
   address: "",
-  community: "Evanston",
   property_type: "detached",
   beds: "4",
   baths_full: "2",
@@ -84,127 +82,6 @@ function badgeClass(c: string) {
   if (c === "high") return "badge badge-high";
   if (c === "low") return "badge badge-low";
   return "badge badge-medium";
-}
-
-// ---------------------------------------------------------------------------
-// Community combobox: text filter input + scrollable dropdown list
-// ---------------------------------------------------------------------------
-
-function CommunityCombobox({
-  value,
-  onChange,
-  withData,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  withData: Set<string>;
-}) {
-  const [query, setQuery] = useState(value);
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const q = query.toLowerCase();
-  const allFiltered = COMMUNITIES.filter((c) => c.name.toLowerCase().includes(q));
-  const withDataFiltered = allFiltered.filter((c) => withData.has(c.name));
-  const withoutDataFiltered = allFiltered.filter((c) => !withData.has(c.name));
-
-  // Close on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        if (!COMMUNITIES.find((c) => c.name.toLowerCase() === query.toLowerCase())) {
-          setQuery(value);
-        }
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [query, value]);
-
-  function select(name: string) {
-    onChange(name);
-    setQuery(name);
-    setOpen(false);
-  }
-
-  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setQuery(e.target.value);
-    setOpen(true);
-  }
-
-  function handleToggle() {
-    setOpen((o) => !o);
-    if (!open) setQuery("");
-  }
-
-  const totalFiltered = allFiltered.length;
-
-  return (
-    <div className="combobox" ref={containerRef}>
-      <div className="combobox-input-row">
-        <input
-          type="text"
-          value={query}
-          onChange={handleInputChange}
-          onFocus={() => setOpen(true)}
-          placeholder="Type to filter..."
-          autoComplete="off"
-          required
-        />
-        <button
-          type="button"
-          className="combobox-toggle"
-          onClick={handleToggle}
-          tabIndex={-1}
-          aria-label="Open community list"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-      </div>
-
-      {open && (
-        <ul className="combobox-list" role="listbox">
-          {totalFiltered === 0 ? (
-            <li className="combobox-empty">No communities match</li>
-          ) : (
-            <>
-              {withDataFiltered.map((c) => (
-                <li
-                  key={c.name}
-                  role="option"
-                  aria-selected={c.name === value}
-                  className={`combobox-option combobox-option-live${c.name === value ? " combobox-option-selected" : ""}`}
-                  onMouseDown={() => select(c.name)}
-                >
-                  <span className="combobox-dot" />
-                  {c.name}
-                </li>
-              ))}
-
-              {withDataFiltered.length > 0 && withoutDataFiltered.length > 0 && (
-                <li className="combobox-divider" role="separator" />
-              )}
-
-              {withoutDataFiltered.map((c) => (
-                <li
-                  key={c.name}
-                  role="option"
-                  aria-selected={c.name === value}
-                  className={`combobox-option combobox-option-dim${c.name === value ? " combobox-option-selected" : ""}`}
-                  onMouseDown={() => select(c.name)}
-                >
-                  {c.name}
-                </li>
-              ))}
-            </>
-          )}
-        </ul>
-      )}
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -401,17 +278,9 @@ export default function Home() {
   const [status, setStatus] = useState<Status>("idle");
   const [report, setReport] = useState<ValuationReport | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
-  const [withData, setWithData] = useState<Set<string>>(new Set());
   const [geocodeStatus, setGeocodeStatus] = useState<GeocodeStatus>("idle");
   const [geocodeMsg, setGeocodeMsg] = useState("");
   const [geocodedCoords, setGeocodedCoords] = useState<GeocodedCoords | null>(null);
-
-  useEffect(() => {
-    fetch("/api/communities")
-      .then((r) => r.json())
-      .then((d: { communities: string[] }) => setWithData(new Set(d.communities)))
-      .catch(() => {});
-  }, []);
 
   async function handleLookup() {
     const address = form.address.trim();
@@ -427,16 +296,14 @@ export default function Home() {
         setGeocodeMsg(data.error ?? "Address not found");
         return;
       }
-      setGeocodedCoords({ lat: data.lat, lon: data.lon, formatted_address: data.formatted_address });
+      const { lat, lon, neighborhood, formatted_address } = data as {
+        lat: number; lon: number; neighborhood: string | null; formatted_address: string;
+      };
+      setGeocodedCoords({ lat, lon, neighborhood, formatted_address });
       setGeocodeStatus("ok");
-      setGeocodeMsg(data.formatted_address);
-      // Auto-fill community if Google returned a neighborhood that matches our list
-      if (data.neighborhood) {
-        const match = COMMUNITIES.find(
-          (c) => c.name.toLowerCase() === (data.neighborhood as string).toLowerCase()
-        );
-        if (match) setForm((f) => ({ ...f, community: match.name }));
-      }
+      setGeocodeMsg(
+        `${formatted_address} · ${lat.toFixed(5)}, ${lon.toFixed(5)}`
+      );
     } catch {
       setGeocodeStatus("error");
       setGeocodeMsg("Lookup failed — check your connection");
@@ -454,20 +321,20 @@ export default function Home() {
     setReport(null);
     setErrorMsg("");
 
-    // Prefer geocoded coordinates (precise), fall back to community centroid.
-    const coords = geocodedCoords ?? getCommunityCoords(form.community);
-    if (!coords) {
-      setErrorMsg(`Unknown community: ${form.community}`);
+    if (!geocodedCoords) {
+      setErrorMsg("Enter a property address and click Lookup to get coordinates before analyzing.");
       setStatus("error");
       return;
     }
 
+    const community = geocodedCoords.neighborhood ?? "Calgary";
+
     const subject = {
       id: `subject-${Date.now()}`,
-      community: form.community,
+      community,
       city: "Calgary",
-      latitude: coords.lat,
-      longitude: coords.lon,
+      latitude: geocodedCoords.lat,
+      longitude: geocodedCoords.lon,
       property_type: form.property_type,
       beds: parseInt(form.beds, 10),
       baths_full: parseInt(form.baths_full, 10),
@@ -556,13 +423,6 @@ export default function Home() {
                 )}
               </div>
 
-              <Field label="Community (Calgary)">
-                <CommunityCombobox
-                  value={form.community}
-                  onChange={(v) => setForm((f) => ({ ...f, community: v }))}
-                  withData={withData}
-                />
-              </Field>
             </div>
 
             {/* Property */}
@@ -719,6 +579,14 @@ export default function Home() {
               {/* Summary card */}
               <div className="summary-card">
                 <div>
+                  {geocodedCoords && (
+                    <div className="subject-address">
+                      {geocodedCoords.neighborhood
+                        ? `${geocodedCoords.neighborhood} · `
+                        : ""}
+                      {geocodedCoords.formatted_address}
+                    </div>
+                  )}
                   <div className="estimate-label">Estimated Value</div>
                   <div className="estimate-value">
                     {report.estimate > 0 ? fmt(report.estimate) : "Insufficient data"}
@@ -797,6 +665,9 @@ export default function Home() {
               )}
             </>
           )}
+          <div className="osm-attribution">
+            Geocoding: Data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors
+          </div>
         </main>
       </div>
     </div>

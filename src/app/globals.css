@@ -105,6 +105,7 @@ body {
   align-items: start;
   gap: 16px;
 }
+.subject-address { font-size: 12px; color: #64748b; margin-bottom: 8px; }
 .estimate-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: #64748b; margin-bottom: 6px; }
 .estimate-value { font-size: 42px; font-weight: 800; color: #0f172a; letter-spacing: -1px; }
 .estimate-range { font-size: 14px; color: #64748b; margin-top: 4px; }
@@ -215,6 +216,14 @@ body {
 }
 .rationale-text { font-size: 13px; color: #334155; line-height: 1.7; }
 
+.osm-attribution {
+  font-size: 11px;
+  color: #94a3b8;
+  padding: 12px 0 4px;
+  text-align: right;
+}
+.osm-attribution a { color: #64748b; }
+
 .error-box {
   background: #fef2f2;
   border: 1px solid #fecaca;
@@ -251,6 +260,23 @@ body {
 .addr-ok   { color: #16a34a; }
 .addr-err  { color: #dc2626; }
 .addr-hint { color: #94a3b8; }
+
+.coords-locked {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #1d4ed8;
+  margin-top: 5px;
+  font-weight: 500;
+}
+.coords-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+}
 
 /* Candidate pool table */
 .cand-wrap {

@@ -2,69 +2,80 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-interface GeoComponent {
-  long_name: string;
-  short_name: string;
-  types: string[];
+// Nominatim address breakdown (keys vary by place; all optional except lat/lon).
+interface NominatimAddress {
+  house_number?: string;
+  road?: string;
+  neighbourhood?: string;
+  suburb?: string;
+  city_district?: string;
+  city?: string;
+  state?: string;
+  postcode?: string;
+  country?: string;
+  country_code?: string;
 }
 
-interface GeocodeResult {
-  formatted_address: string;
-  geometry: { location: { lat: number; lng: number } };
-  address_components: GeoComponent[];
-}
-
-interface GeocodeResponse {
-  status: string;
-  results: GeocodeResult[];
+interface NominatimResult {
+  lat: string;    // string in Nominatim -- parse to float
+  lon: string;
+  display_name: string;
+  address?: NominatimAddress;
 }
 
 export async function GET(req: NextRequest) {
-  const address = req.nextUrl.searchParams.get("address");
-  if (!address?.trim()) {
+  const address = req.nextUrl.searchParams.get("address")?.trim();
+  if (!address) {
     return NextResponse.json({ error: "Missing address" }, { status: 400 });
   }
 
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "Geocoding not configured on server" }, { status: 503 });
-  }
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("q", address);
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("addressdetails", "1");
+  url.searchParams.set("limit", "1");
+  url.searchParams.set("countrycodes", "ca");
+  url.searchParams.set("accept-language", "en");
 
-  const url =
-    `https://maps.googleapis.com/maps/api/geocode/json` +
-    `?address=${encodeURIComponent(address)}` +
-    `&key=${apiKey}`;
-
-  let data: GeocodeResponse;
+  let results: NominatimResult[];
   try {
-    const resp = await fetch(url, { next: { revalidate: 0 } });
-    data = await resp.json();
+    const resp = await fetch(url.toString(), {
+      headers: {
+        // Required by Nominatim usage policy.
+        "User-Agent": "KVCapital-CompAnalysis/1.0 (contact@kvcapital.ca)",
+        "Accept": "application/json",
+      },
+      // Cache same-address lookups for 24 h to respect the 1 req/s rate limit.
+      next: { revalidate: 86400 },
+    });
+    results = await resp.json();
   } catch {
     return NextResponse.json({ error: "Geocoding request failed" }, { status: 502 });
   }
 
-  if (data.status !== "OK" || data.results.length === 0) {
+  if (!results.length) {
     return NextResponse.json(
       { error: "Address not found — try adding the city or postal code" },
       { status: 404 }
     );
   }
 
-  const result = data.results[0];
-  const { lat, lng } = result.geometry.location;
-  const components = result.address_components;
+  const top = results[0];
+  const lat = parseFloat(top.lat);
+  const lon = parseFloat(top.lon);
+  const addr = top.address ?? {};
 
-  // Extract neighborhood / sublocality for community auto-fill
+  // Neighbourhood in Calgary typically comes back as suburb or neighbourhood.
   const neighborhood =
-    components.find((c) => c.types.includes("neighborhood"))?.long_name ??
-    components.find((c) => c.types.includes("sublocality_level_1"))?.long_name ??
-    components.find((c) => c.types.includes("sublocality"))?.long_name ??
+    addr.neighbourhood ??
+    addr.suburb ??
+    addr.city_district ??
     null;
 
   return NextResponse.json({
     lat,
-    lon: lng,
+    lon,
     neighborhood,
-    formatted_address: result.formatted_address,
+    formatted_address: top.display_name,
   });
 }
