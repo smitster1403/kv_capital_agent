@@ -2,7 +2,7 @@
 
 AI-powered sales comparison valuation for residential properties in Calgary.
 
-**Demo video:** _coming soon_
+**Demo video:** [Watch on Loom](https://www.loom.com/share/14ce49c10c7c4d6da066ed1216a137f6)
 **Phone (Sam call):** +1 (587) 966-2408
 
 ---
@@ -58,15 +58,6 @@ cd kv_capital_agent
 npm install
 ```
 
-Create `.env.local`:
-
-```
-ANTHROPIC_API_KEY=sk-ant-...
-AI_MODEL=claude-haiku-4-5-20251001
-```
-
-The sales database ships with the repo (`data/sales.db`) -- no seeding needed.
-
 ### Run
 
 ```bash
@@ -75,13 +66,12 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### Test addresses that work well
+### Test addresses
 
 The data covers inner-city NW Calgary (Hillhurst, Rosedale, Crescent Heights, Capitol Hill, Mount Pleasant) and several SW/NW/SE suburbs. Good test inputs:
 
-- `708 Alexander Crescent NW` - Detached, 3 bd, 2 ba, 1400 sqft, 1965
-- `2020 Westmount Blvd NW` - Detached, 4 bd, 2 ba, 1600 sqft, 1970
-- Any address in Evanston, Tuscany, or Aspen Woods (newer detached stock)
+- `1404 18 Ave NW, Calgary, AB T2M 0W6` - Detached, 4 bd, 2 ba, 4499 lot size, 1066 GLA, 1928 year built
+- `1410 21 AVENUE NW, Capitol Hill, Calgary, AB T2M 1L6` - Semi-Detached, 4 bd, 4 ba, 3013 lot size, 1929 GLA, 2013 year built
 
 ---
 
@@ -89,13 +79,11 @@ The data covers inner-city NW Calgary (Hillhurst, Rosedale, Crescent Heights, Ca
 
 1. **Real MLS data pipeline** - Automate ingestion from CREB or Zolo so the database stays current. The import script and scraper scaffolding are already in place.
 
-2. **Paired sales regression for adjustments** - Current dollar adjustments are derived from market assumptions. A proper regression on actual paired sales data (same property sold twice, or matched pairs) would make adjustments defensible.
+2. **More markets** - The architecture is city-agnostic. Edmonton would be the natural next market; the geocoder and community lookup system would need a corresponding dataset.
 
-3. **More markets** - The architecture is city-agnostic. Edmonton would be the natural next market; the geocoder and community lookup system would need a corresponding dataset.
+3. **Report export** - Generate a PDF appraisal report in FNMA 1004 format. Lenders and brokers need paper, not a web UI.
 
-4. **Report export** - Generate a PDF appraisal report in FNMA 1004 format. Lenders and brokers need paper, not a web UI.
-
-5. **Confidence signals from data density** - Surface to the user when coverage is thin (fewer than 10 comps in the pool) and suggest relaxing filters, rather than silently returning a low-confidence estimate.
+4. **Confidence signals from data density** - Surface to the user when coverage is thin (fewer than 10 comps in the pool) and suggest relaxing filters, rather than silently returning a low-confidence estimate.
 
 ---
 
